@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>SKT Büyüteç</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#080a09">
+<link rel="icon" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#080a09;
+    --panel:rgba(18,22,20,0.72);
+    --panel-solid:#121614;
+    --line:rgba(242,242,237,0.14);
+    --ink:#F2F2ED;
+    --ink-dim:#9AA39C;
+    --laser:#FF3B30;
+    --laser-dim:rgba(255,59,48,0.35);
+    --ok:#39FF6A;
+    --warn:#FFC93C;
+    --bad:#FF3B30;
+    --amber-glow: 0 0 24px rgba(255,201,60,0.35);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0; padding:0; height:100%; width:100%;
+    background:var(--bg); color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    overflow:hidden; overscroll-behavior:none;
+    position:fixed; inset:0;
+  }
+  #stage{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    background:#000;
+  }
+  video{ display:none; }
+  #view{
+    position:absolute; inset:0; width:100%; height:100%;
+    display:block;
+  }
+
+  /* top bar */
+  #topbar{
+    position:absolute; top:0; left:0; right:0;
+    padding: calc(env(safe-area-inset-top,0px) + 14px) 16px 12px 16px;
+    display:flex; align-items:center; justify-content:space-between;
+    background:linear-gradient(180deg, rgba(0,0,0,0.65), rgba(0,0,0,0));
+    z-index:20; pointer-events:none;
+  }
+  #brand{
+    display:flex; align-items:center; gap:9px; pointer-events:auto;
+  }
+  #brand .dot{
+    width:9px; height:9px; border-radius:50%; background:var(--laser);
+    box-shadow:0 0 10px var(--laser);
+    animation:pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:1} 50%{opacity:.35}}
+  #brand .title{
+    font-family:'Space Mono',monospace; font-weight:700; font-size:15px;
+    letter-spacing:0.4px;
+  }
+  #infoBtn{
+    pointer-events:auto;
+    width:34px; height:34px; border-radius:50%;
+    background:var(--panel); border:1px solid var(--line);
+    color:var(--ink); font-family:'Space Mono',monospace; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    font-size:15px;
+  }
+
+  /* viewfinder guide */
+  #guide{
+    position:absolute; left:50%; top:44%;
+    transform:translate(-50%,-50%);
+    width:78%; height:112px;
+    border-radius:16px;
+    pointer-events:none;
+    z-index:10;
+  }
+  #guide::before, #guide::after{
+    content:''; position:absolute; inset:0;
+  }
+  .corner{
+    position:absolute; width:26px; height:26px;
+    border:3px solid var(--ink); opacity:0.9;
+  }
+  .corner.tl{top:-3px; left:-3px; border-right:none; border-bottom:none; border-top-left-radius:10px;}
+  .corner.tr{top:-3px; right:-3px; border-left:none; border-bottom:none; border-top-right-radius:10px;}
+  .corner.bl{bottom:-3px; left:-3px; border-right:none; border-top:none; border-bottom-left-radius:10px;}
+  .corner.br{bottom:-3px; right:-3px; border-left:none; border-top:none; border-bottom-right-radius:10px;}
+  #laserline{
+    position:absolute; left:6%; right:6%; height:2px;
+    background:linear-gradient(90deg, transparent, var(--laser) 20%, var(--laser) 80%, transparent);
+    box-shadow:0 0 8px var(--laser);
+    animation:sweep 2.2s ease-in-out infinite;
+  }
+  @keyframes sweep{
+    0%{ top:14%; opacity:0.9;}
+    50%{ top:86%; opacity:1;}
+    100%{ top:14%; opacity:0.9;}
+  }
+  #guideLabel{
+    position:absolute; bottom:-28px; left:0; right:0; text-align:center;
+    font-size:12px; color:var(--ink-dim); letter-spacing:0.3px;
+  }
+
+  /* bottom controls */
+  #bottombar{
+    position:absolute; left:0; right:0; bottom:0;
+    padding: 16px 18px calc(env(safe-area-inset-bottom,0px) + 20px) 18px;
+    background:linear-gradient(0deg, rgba(0,0,0,0.75), rgba(0,0,0,0));
+    z-index:20;
+    display:flex; flex-direction:column; gap:14px;
+  }
+  #zoomRow{
+    display:flex; align-items:center; gap:10px;
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:14px; padding:8px 14px;
+  }
+  #zoomRow label{ font-size:11px; color:var(--ink-dim); font-family:'Space Mono',monospace; white-space:nowrap;}
+  #zoomVal{ font-family:'Space Mono',monospace; font-size:12px; color:var(--ink); width:34px; text-align:right;}
+  input[type=range]{
+    flex:1; -webkit-appearance:none; height:4px; border-radius:2px;
+    background:rgba(242,242,237,0.2); outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:20px; height:20px; border-radius:50%;
+    background:var(--ink); border:3px solid var(--laser); cursor:pointer;
+  }
+
+  #actionRow{
+    display:flex; align-items:center; justify-content:center; gap:18px;
+  }
+  .iconbtn{
+    width:52px; height:52px; border-radius:50%;
+    background:var(--panel); border:1px solid var(--line);
+    color:var(--ink); display:flex; align-items:center; justify-content:center;
+    font-size:20px;
+  }
+  .iconbtn.active{ background:var(--laser); border-color:var(--laser); color:#1a0000;}
+  #scanBtn{
+    width:78px; height:78px; border-radius:50%;
+    background:var(--laser);
+    border:5px solid rgba(255,255,255,0.9);
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-weight:800; font-size:12px; font-family:'Space Mono',monospace;
+    box-shadow:0 4px 22px rgba(255,59,48,0.45);
+    letter-spacing:0.5px;
+  }
+  #scanBtn:active{ transform:scale(0.94); }
+  #scanBtn.busy{ animation:spin 1s linear infinite; }
+  @keyframes spin{ from{filter:brightness(1)} to{filter:brightness(1.4)} }
+
+  /* result overlay */
+  #resultOverlay{
+    position:absolute; inset:0; z-index:40;
+    display:none; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(4,5,4,0.92);
+    padding: calc(env(safe-area-inset-top,0px) + 20px) 20px calc(env(safe-area-inset-bottom,0px) + 20px) 20px;
+    text-align:center;
+  }
+  #resultOverlay.show{ display:flex; }
+  #resultStatus{
+    font-family:'Space Mono',monospace; font-size:13px; letter-spacing:1.5px;
+    text-transform:uppercase; margin-bottom:6px;
+  }
+  #resultDate{
+    font-family:'Space Mono',monospace; font-weight:700;
+    font-size:min(19vw,110px); line-height:1; letter-spacing:2px;
+    margin: 10px 0 6px 0;
+  }
+  #resultSub{ color:var(--ink-dim); font-size:14px; margin-bottom:22px; min-height:18px;}
+  #candidates{
+    display:flex; gap:10px; flex-wrap:wrap; justify-content:center;
+    margin-bottom:26px; max-width:480px;
+  }
+  .chip{
+    font-family:'Space Mono',monospace; font-size:14px;
+    background:var(--panel-solid); border:1px solid var(--line);
+    padding:8px 14px; border-radius:10px; color:var(--ink);
+  }
+  .chip.picked{ border-color:var(--ink); background:rgba(242,242,237,0.08);}
+  #closeResult{
+    font-family:'Inter'; font-weight:600; font-size:15px;
+    background:transparent; border:1px solid var(--line); color:var(--ink);
+    padding:13px 30px; border-radius:30px;
+  }
+  #rawText{
+    margin-top:16px; font-size:11px; color:var(--ink-dim); max-width:80%;
+    font-family:'Space Mono',monospace; word-break:break-all; opacity:0.7;
+  }
+
+  /* permission / info screens */
+  .screen{
+    position:absolute; inset:0; z-index:50;
+    background:var(--bg); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; padding:32px;
+    text-align:center; gap:16px;
+  }
+  .screen h1{
+    font-family:'Space Mono',monospace; font-size:22px; margin:0;
+  }
+  .screen p{ color:var(--ink-dim); font-size:14.5px; line-height:1.55; max-width:420px; margin:0;}
+  .screen button{
+    margin-top:10px; font-family:'Inter'; font-weight:700; font-size:15px;
+    background:var(--laser); color:#fff; border:none;
+    padding:15px 34px; border-radius:30px;
+  }
+  #infoScreen{ display:none; }
+  #infoScreen.show{ display:flex; }
+  #infoScreen ul{ text-align:left; color:var(--ink-dim); font-size:14px; line-height:1.7; max-width:420px; padding-left:18px;}
+  #infoScreen .closeInfo{ background:transparent; border:1px solid var(--line); color:var(--ink);}
+  #loadingNote{ font-size:12px; color:var(--ink-dim); margin-top:4px; font-family:'Space Mono',monospace;}
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <video id="video" playsinline autoplay muted></video>
+  <canvas id="view"></canvas>
+  <canvas id="work" style="display:none;"></canvas>
+</div>
+
+<div id="guide">
+  <div id="laserline"></div>
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+  <div id="guideLabel">tarihi bu kutuya hizala</div>
+</div>
+
+<div id="topbar">
+  <div id="brand"><span class="dot"></span><span class="title">SKT BÜYÜTEÇ</span></div>
+  <button id="infoBtn">i</button>
+</div>
+
+<div id="bottombar">
+  <div id="zoomRow">
+    <label>ZOOM</label>
+    <input type="range" id="zoomSlider" min="1.5" max="8" step="0.1" value="3">
+    <span id="zoomVal">3.0x</span>
+  </div>
+  <div id="actionRow">
+    <button class="iconbtn" id="torchBtn" title="Fener">💡</button>
+    <button id="scanBtn">TARİHİ<br>OKU</button>
+    <button class="iconbtn" id="flipBtn" title="Kamera değiştir">🔄</button>
+  </div>
+</div>
+
+<div id="resultOverlay">
+  <div id="resultStatus">okunuyor</div>
+  <div id="resultDate">--.--.----</div>
+  <div id="resultSub"></div>
+  <div id="candidates"></div>
+  <div id="rawText"></div>
+  <button id="closeResult">Tekrar Tara</button>
+</div>
+
+<div class="screen" id="permScreen">
+  <h1>SKT BÜYÜTEÇ</h1>
+  <p>Rafta göremediğin küçük son kullanma tarihlerini kamerayla büyütür ve otomatik okumayı dener. Devam etmek için kameraya izin ver.</p>
+  <p style="font-size:12px; opacity:0.7;">Not: OCR motorunun internetsiz çalışabilmesi için uygulamayı ilk kez internetli açman ve bir kez "TARİHİ OKU" ile tarama yapman gerekir. Sonrasında uçak modunda da çalışır.</p>
+  <button id="startBtn">Kamerayı Aç</button>
+  <div id="loadingNote"></div>
+</div>
+
+<div class="screen" id="infoScreen">
+  <h1>Nasıl çalışır?</h1>
+  <ul>
+    <li>Barkodun kendisinde son kullanma tarihi <b>yer almaz</b> — bu yüzden barkod yerine ambalajın üstündeki basılı tarihi kamerayla büyütüp okuyoruz.</li>
+    <li>Tarihi ortadaki çerçeveye hizala, ZOOM ile yakınlaştır.</li>
+    <li>"TARİHİ OKU" otomatik okumayı dener. Baskı soluksa veya kırışıksa çerçevedeki büyük görüntüden elle de okuyabilirsin.</li>
+    <li>Birden fazla tarih bulunursa (üretim + son kullanma gibi) hepsini alt alta gösteririz, doğrusuna dokun.</li>
+  </ul>
+  <button class="closeInfo" id="closeInfoBtn">Kapat</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script>
+(function(){
+  const video = document.getElementById('video');
+  const view = document.getElementById('view');
+  const vctx = view.getContext('2d');
+  const work = document.getElementById('work');
+  const wctx = work.getContext('2d');
+
+  const permScreen = document.getElementById('permScreen');
+  const startBtn = document.getElementById('startBtn');
+  const loadingNote = document.getElementById('loadingNote');
+  const zoomSlider = document.getElementById('zoomSlider');
+  const zoomVal = document.getElementById('zoomVal');
+  const scanBtn = document.getElementById('scanBtn');
+  const torchBtn = document.getElementById('torchBtn');
+  const flipBtn = document.getElementById('flipBtn');
+  const resultOverlay = document.getElementById('resultOverlay');
+  const resultStatus = document.getElementById('resultStatus');
+  const resultDate = document.getElementById('resultDate');
+  const resultSub = document.getElementById('resultSub');
+  const candidatesEl = document.getElementById('candidates');
+  const rawTextEl = document.getElementById('rawText');
+  const closeResult = document.getElementById('closeResult');
+  const infoBtn = document.getElementById('infoBtn');
+  const infoScreen = document.getElementById('infoScreen');
+  const closeInfoBtn = document.getElementById('closeInfoBtn');
+  const guideLabel = document.getElementById('guideLabel');
+
+  let stream = null;
+  let facing = 'environment';
+  let torchOn = false;
+  let rafId = null;
+  let zoom = parseFloat(zoomSlider.value);
+  let ocrWorker = null;
+  let ocrReady = false;
+  let ocrBusy = false;
+
+  function fitCanvas(){
+    view.width = window.innerWidth * devicePixelRatio;
+    view.height = window.innerHeight * devicePixelRatio;
+    view.style.width = window.innerWidth + 'px';
+    view.style.height = window.innerHeight + 'px';
+  }
+  window.addEventListener('resize', fitCanvas);
+  fitCanvas();
+
+  async function startCamera(){
+    try{
+      loadingNote.textContent = 'kamera başlatılıyor…';
+      if(stream){ stream.getTracks().forEach(t=>t.stop()); }
+      stream = await navigator.mediaDevices.getUserMedia({
+        video:{ facingMode:{ ideal: facing }, width:{ideal:1920}, height:{ideal:1080} },
+        audio:false
+      });
+      video.srcObject = stream;
+      await video.play();
+      permScreen.style.display = 'none';
+      loop();
+      prepOcr();
+    }catch(err){
+      loadingNote.textContent = 'Kameraya erişilemedi: ' + (err.message || err.name) + ' — tarayıcı ayarlarından izin verildiğinden emin ol.';
+    }
+  }
+
+  function loop(){
+    if(video.readyState >= 2){
+      drawMagnified(vctx, view.width, view.height);
+    }
+    rafId = requestAnimationFrame(loop);
+  }
+
+  // crops the center region of the live video (by 1/zoom fraction) and draws it
+  // scaled up to fill the target canvas — this is the actual "magnifying glass"
+  function drawMagnified(ctx, w, h){
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if(!vw || !vh) return;
+    const cropW = vw / zoom;
+    const cropH = vh / zoom;
+    const sx = (vw - cropW)/2;
+    const sy = (vh - cropH)/2;
+    ctx.drawImage(video, sx, sy, cropW, cropH, 0, 0, w, h);
+  }
+
+  zoomSlider.addEventListener('input', ()=>{
+    zoom = parseFloat(zoomSlider.value);
+    zoomVal.textContent = zoom.toFixed(1) + 'x';
+  });
+
+  flipBtn.addEventListener('click', ()=>{
+    facing = (facing === 'environment') ? 'user' : 'environment';
+    startCamera();
+  });
+
+  torchBtn.addEventListener('click', async ()=>{
+    if(!stream) return;
+    const track = stream.getVideoTracks()[0];
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    if(!caps.torch){
+      torchBtn.style.opacity = '0.4';
+      return;
+    }
+    torchOn = !torchOn;
+    try{
+      await track.applyConstraints({ advanced:[{ torch: torchOn }] });
+      torchBtn.classList.toggle('active', torchOn);
+    }catch(e){}
+  });
+
+  startBtn.addEventListener('click', startCamera);
+
+  infoBtn.addEventListener('click', ()=> infoScreen.classList.add('show'));
+  closeInfoBtn.addEventListener('click', ()=> infoScreen.classList.remove('show'));
+
+  async function prepOcr(){
+    if(ocrWorker) return;
+    try{
+      ocrWorker = await Tesseract.createWorker('eng', 1, {
+        // keep default CDN paths (jsDelivr) for core/lang data
+      });
+      await ocrWorker.setParameters({
+        tessedit_char_whitelist: '0123456789./-: ',
+        tessedit_pageseg_mode: '6'
+      });
+      ocrReady = true;
+    }catch(e){
+      ocrReady = false;
+    }
+  }
+
+  // ---- date parsing ----
+  function extractDates(text){
+    const cleaned = text.replace(/[^0-9.\/\-\n ]/g,' ');
+    const re = /\b(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{2,4})\b/g;
+    let m, out = [];
+    while((m = re.exec(cleaned)) !== null){
+      let d = parseInt(m[1],10), mo = parseInt(m[2],10), y = parseInt(m[3],10);
+      if(y < 100) y += 2000;
+      if(d<1||d>31||mo<1||mo>12) continue;
+      if(y < 2015 || y > 2045) continue;
+      const dateObj = new Date(y, mo-1, d);
+      if(dateObj.getMonth() !== mo-1) continue; // invalid e.g. 31.02
+      const label = String(d).padStart(2,'0')+'.'+String(mo).padStart(2,'0')+'.'+y;
+      out.push({label, date:dateObj});
+    }
+    // de-dupe
+    const seen = new Set();
+    return out.filter(o=>{
+      if(seen.has(o.label)) return false;
+      seen.add(o.label); return true;
+    });
+  }
+
+  function freshnessInfo(dateObj){
+    const today = new Date(); today.setHours(0,0,0,0);
+    const diffDays = Math.round((dateObj - today) / 86400000);
+    if(diffDays < 0) return {color:'var(--bad)', text:`${Math.abs(diffDays)} gün önce geçmiş — SÜRESİ DOLMUŞ`};
+    if(diffDays === 0) return {color:'var(--bad)', text:'Bugün son gün'};
+    if(diffDays <= 5) return {color:'var(--warn)', text:`${diffDays} gün kaldı — yakında geçecek`};
+    return {color:'var(--ok)', text:`${diffDays} gün kaldı`};
+  }
+
+  function showResult(candidates, rawText){
+    candidatesEl.innerHTML = '';
+    rawTextEl.textContent = '';
+    if(candidates.length === 0){
+      resultStatus.textContent = 'tarih bulunamadı';
+      resultDate.textContent = '—';
+      resultDate.style.color = 'var(--ink)';
+      resultSub.textContent = 'Zoom ile daha yakınlaştırıp tekrar dene, ya da büyütülmüş görüntüden elle oku.';
+      if(rawText && rawText.trim()){
+        rawTextEl.textContent = 'okunan: ' + rawText.trim().replace(/\s+/g,' ').slice(0,120);
+      }
+      resultOverlay.classList.add('show');
+      return;
+    }
+    // heuristic: pick the latest date as the likely SKT (expiry usually later than üretim tarihi)
+    candidates.sort((a,b)=> a.date - b.date);
+    const picked = candidates[candidates.length-1];
+    renderPicked(picked);
+
+    if(candidates.length > 1){
+      candidates.forEach(c=>{
+        const chip = document.createElement('div');
+        chip.className = 'chip' + (c.label===picked.label ? ' picked':'');
+        chip.textContent = c.label;
+        chip.addEventListener('click', ()=>{
+          [...candidatesEl.children].forEach(ch=>ch.classList.remove('picked'));
+          chip.classList.add('picked');
+          renderPicked(c);
+        });
+        candidatesEl.appendChild(chip);
+      });
+    }
+    resultOverlay.classList.add('show');
+  }
+
+  function renderPicked(c){
+    resultStatus.textContent = 'olası son kullanma tarihi';
+    resultDate.textContent = c.label;
+    const info = freshnessInfo(c.date);
+    resultDate.style.color = info.color;
+    resultSub.textContent = info.text;
+  }
+
+  async function runScan(){
+    if(ocrBusy) return;
+    ocrBusy = true;
+    scanBtn.classList.add('busy');
+    resultStatus.textContent = 'okunuyor';
+    resultDate.textContent = '--.--.----';
+    resultDate.style.color = 'var(--ink)';
+    resultSub.textContent = '';
+    candidatesEl.innerHTML = '';
+    rawTextEl.textContent = '';
+    resultOverlay.classList.add('show');
+
+    try{
+      // upscale the currently magnified view further for OCR clarity
+      const targetW = 1000;
+      const scale = targetW / view.width;
+      work.width = targetW;
+      work.height = Math.round(view.height * scale);
+      wctx.imageSmoothingEnabled = true;
+      wctx.drawImage(view, 0, 0, work.width, work.height);
+
+      if(!ocrReady){
+        await prepOcr();
+      }
+      if(!ocrReady || !ocrWorker){
+        throw new Error('ocr-unavailable');
+      }
+      const { data } = await ocrWorker.recognize(work);
+      const text = data.text || '';
+      const candidates = extractDates(text);
+      showResult(candidates, text);
+    }catch(e){
+      resultStatus.textContent = 'otomatik okuma başarısız';
+      resultDate.textContent = '—';
+      resultDate.style.color = 'var(--ink)';
+      resultSub.textContent = 'Büyütülmüş görüntüden elle okumayı dene, ya da daha yakınlaştırıp tekrar dene.';
+      resultOverlay.classList.add('show');
+    }finally{
+      ocrBusy = false;
+      scanBtn.classList.remove('busy');
+    }
+  }
+
+  scanBtn.addEventListener('click', runScan);
+  closeResult.addEventListener('click', ()=> resultOverlay.classList.remove('show'));
+
+  // Service worker'ı kaydet: ilk internetli açılışta tüm dosyalar
+  // (fontlar, Tesseract motoru, dil paketi) cihaza kaydedilir; sonraki
+  // açılışlarda internet olmadan da çalışır.
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('./service-worker.js')
+        .then(()=> console.log('SKT Büyüteç: service worker kayıtlı, offline destek aktif.'))
+        .catch(err=> console.warn('Service worker kayıt hatası:', err));
+    });
+  }
+
+})();
+</script>
+</body>
+</html>
