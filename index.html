@@ -96,6 +96,9 @@
   .skel .skel-line{height:12px; border-radius:6px; background:var(--surface2); margin:10px 0;}
   .skel .skel-img, .skel .skel-line{animation:skelPulse 1.2s ease-in-out infinite;}
   @keyframes skelPulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .foot-addr{display:flex !important; gap:8px; align-items:flex-start; margin-top:12px; font-size:12.5px; line-height:1.5; text-decoration:none; color:inherit; opacity:.9; max-width:260px;}
+  .foot-addr:hover{opacity:1; color:var(--amber);}
+  .foot-addr .pin{flex:none;}
   .subchips{display:flex; gap:8px; flex-wrap:wrap; margin:0 0 18px;}
   .subchips button{background:var(--surface2); border:1px solid var(--line); color:var(--text); font-size:12.5px; font-weight:700; padding:8px 14px; border-radius:20px; cursor:pointer;}
   .subchips button:hover, .subchips button.active{background:var(--amber); color:#fff; border-color:var(--amber);}
@@ -1558,6 +1561,9 @@ function footerHtml(){
         <div class="foot-col">
           <h4 class="disp">${esc(DATA.siteName)}</h4>
           <p style="color:var(--amber); font-weight:600; font-size:12.5px;">Şeyhmus Şener</p>
+          <a class="foot-addr" href="https://www.google.com/maps/place//data=!4m2!3m1!1s0x14cab1a0fe173173:0x5a225017872b1804" target="_blank" rel="noopener" title="Haritalar uygulamasında aç">
+            <span class="pin">📍</span><span>Akpınar, Pehlivanlı Sk. no:23, 34885 Sancaktepe/İstanbul</span>
+          </a>
         </div>
         <div class="foot-col">
           <h4>DEPARTMANLAR</h4>
@@ -1565,7 +1571,7 @@ function footerHtml(){
         </div>
         <div class="foot-col">
           <h4>HAKKINDA</h4>
-          <a href="#">Hakkımızda</a><a href="#">Müşteri Hizmetleri</a><a href="#">Mağaza Konumları</a>
+          <a href="#">Hakkımızda</a><a href="#">Müşteri Hizmetleri</a><a href="https://www.google.com/maps/place//data=!4m2!3m1!1s0x14cab1a0fe173173:0x5a225017872b1804" target="_blank" rel="noopener">Mağaza Konumları</a>
         </div>
         <div class="foot-col">
           <h4>DESTEK</h4>
